@@ -9,3 +9,4 @@ google-genai
 pytest
 httpx
 pillow
+alembic
