@@ -52,3 +52,41 @@ def tag_image(image_path: str) -> dict:
     )
 
     return json.loads(response.text)
+
+
+def test_hard_cases() -> None:
+    """Debug: tag deliberately hard images (low file size / resolution or 50x50) and print confidence."""
+    import os
+
+    from pathlib import Path
+
+    from PIL import Image
+
+    images_root = Path(__file__).resolve().parents[2] / "data" / "images"
+
+    ranked = []
+    for folder in sorted(p for p in images_root.iterdir() if p.is_dir()):
+        for img in sorted(folder.glob("*.jpg")):
+            with Image.open(img) as im:
+                width, height = im.size
+            ranked.append((os.path.getsize(img), width * height, img))
+    ranked.sort()
+
+    hardest = ranked[:3]
+    smallest = hardest[0][2]
+
+    lowres_path = images_root / "_test_lowres.jpg"
+    with Image.open(smallest) as im:
+        im.resize((50, 50)).save(lowres_path, "JPEG")
+
+    cases = [("hardest-1", t[2]) for t in hardest] + [("lowres-50x50", lowres_path)]
+
+    for label, path in cases:
+        size_kb = os.path.getsize(path) / 1024
+        with Image.open(path) as im:
+            width, height = im.size
+        print(f"=== {label}: {path} ({size_kb:.1f} KB, {width}x{height}) ===")
+        raw = tag_image(str(path))
+        print(f"subject={raw['subject']!r}")
+        print(f"confidence={raw['confidence']!r}")
+        print()
