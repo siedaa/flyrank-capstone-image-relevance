@@ -1,11 +1,12 @@
 import json
+from pathlib import Path
 
 from google import genai
 from google.genai import types
 
 from app.core.config import settings
 
-GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_MODEL = "gemini-3.5-flash-lite"
 
 _TAGGING_PROMPT = """Analyze the animal in this image and return structured JSON with this exact shape:
 {
@@ -22,9 +23,20 @@ Rules:
 """
 
 
-def tag_image(image_path: str) -> dict:
-    """Tag the image at image_path with Gemini Flash and return the parsed JSON dict."""
+def tag_image(image_path: str, include_usage: bool = False):
+    """Tag the image at image_path with Gemini Flash and return the parsed JSON dict.
+
+    When include_usage is True, returns (parsed_dict, usage_dict) where usage_dict
+    holds the actual token counts reported by Gemini:
+        {"input_tokens": int, "output_tokens": int}
+    """
     client = genai.Client(api_key=settings.GEMINI_API_KEY)
+
+    mime_type = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+    }.get(Path(image_path).suffix.lower(), "image/jpeg")
 
     with open(image_path, "rb") as fh:
         image_bytes = fh.read()
@@ -32,7 +44,7 @@ def tag_image(image_path: str) -> dict:
     response = client.models.generate_content(
         model=GEMINI_MODEL,
         contents=[
-            types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg"),
+            types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
             _TAGGING_PROMPT,
         ],
         config=types.GenerateContentConfig(
@@ -51,7 +63,16 @@ def tag_image(image_path: str) -> dict:
         ),
     )
 
-    return json.loads(response.text)
+    parsed = json.loads(response.text)
+    if not include_usage:
+        return parsed
+
+    usage = response.usage_metadata
+    usage_dict = {
+        "input_tokens": usage.prompt_token_count,
+        "output_tokens": usage.candidates_token_count,
+    }
+    return parsed, usage_dict
 
 
 def test_hard_cases() -> None:
