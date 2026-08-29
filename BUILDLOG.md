@@ -61,3 +61,63 @@ This is the kind of human verification loop the system is designed to
 support — the confidence scores were high (0.95) even for misidentifications,
 which is exactly why the mismatch guard (Phase 3) needs category + similarity
 checks, not just confidence.
+
+## Phase 3 — matching and guard
+
+### Embeddings service
+I built `app/services/embeddings.py` with a single `embed_text()` function
+that calls Gemini's `gemini-embedding-001` model with `task_type="SEMANTIC_SIMILARITY"`.
+It returns a 3072-dim vector. I included retry logic reused from the batch
+ingestion pattern — rate-limit detection, parsed retry delays, exponential
+backoff — but simpler since embeddings have a much higher free quota than
+vision calls.
+
+### Batch embedding generation
+`scripts/generate_embeddings.py` iterates over all images with empty
+embeddings, calls `embed_text()` on each caption, and commits immediately
+per row so nothing is lost on crash. It's resumable — re-running skips
+images that already have vectors. Same pattern for posts: loads
+`data/posts.json`, filters out titles already in the DB, embeds the
+combined "title + body" text. All 50 images and 7 posts ended up with
+consistent 3072-dim vectors.
+
+### Cosine similarity ranking
+I wrote `rank_images_for_post()` which fetches a post and all images with
+embeddings, computes cosine similarity for each pair, sorts descending, and
+runs the guard on each candidate in ranked order. The first accepted image
+becomes the suggestion. If nothing passes, it returns "No confident match
+found".
+
+### The guard's three checks — and what testing revealed
+The guard runs category → similarity → confidence, returning the first
+failure. I tested it against all 7 posts and hit a critical finding:
+**similarity scores alone cannot cleanly separate animal categories.** Against
+the fox post, a bear scored 0.788 while a wolf scored 0.768 — the bear
+ranked higher than the wolf, even though both are wrong answers. Similarity
+scores for all 50 images against any given post clustered in a narrow band
+(~0.69-0.85), with cross-category overlaps that made a similarity threshold
+alone unreliable.
+
+This directly shaped the decision to make category checking a hard gate
+rather than a soft signal. The category check (do any meaningful words from
+the image subject appear in the post text?) catches the obvious mismatches
+instantly — a wolf image on a fox post fails on "wolf" not appearing in the
+fox post text. Similarity then acts as a secondary filter for posts where
+the category passes but the match is still too weak. Confidence is the final
+safety net but rarely fires since scores cluster at 0.95+.
+
+### Deliberately forcing the wolf-on-fox-post test
+I didn't just rely on the ranking never putting a wolf first against a fox
+post — I wrote `test_forced_wolf.py` to explicitly force wolf_02.jpg as a
+candidate for "The Secret Life of Red Foxes" and verify the guard catches it.
+The output confirmed: "Category mismatch: expected fox, detected gray wolf".
+This is the kind of adversarial test case that matters more than happy-path
+ranking, since the guard's whole purpose is to catch situations the ranking
+gets wrong.
+
+### Threshold tuning
+The similarity floor (0.75) and confidence floor (0.7) were derived from
+measuring real scores across the dataset, not guessed. The 0.75 floor sits
+below the lowest accepted animal-to-animal match (~0.77 for the dog post)
+while above the highest non-animal post similarity (~0.74). The category
+check does the real work; similarity mainly catches totally irrelevant posts.

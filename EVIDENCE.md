@@ -87,13 +87,55 @@ Example — resumability on re-run:
 [23/50] dog_03.jpg -> domestic dog (confidence 0.98) - $0.000587 ...
 ```
 
+### Semantic matching works for equivalent concepts
+
+The fox post ("The Secret Life of Red Foxes") correctly ranks fox_10.jpg
+highest (similarity 0.8458) among all 50 images, with fox_01.jpg (0.8450)
+and fox_05.jpg (0.8347) rounding out the top 3. All three pass the guard
+and are accepted.
+
+```
+Post: 'The Secret Life of Red Foxes'
+Rank  Image            Subject              Sim Verdict    Reason
+------------------------------------------------------------------------------------------
+1     fox_10.jpg       red fox              0.8458 accepted   -
+2     fox_01.jpg       red fox              0.8450 accepted   -
+3     fox_05.jpg       red fox              0.8347 accepted   -
+Suggestion: fox_10.jpg
+```
+
+### The mismatch guard rejects incorrect recommendations
+
+Forcing wolf_02.jpg (a real wolf, similarity 0.7683) as a candidate for the
+fox post provably fails — the guard rejects it on the category check before
+similarity is even evaluated:
+
+```
+Forcing wolf_02.jpg as a candidate for 'The Secret Life of Red Foxes'
+Similarity score: 0.7683
+Guard verdict: rejected
+Reason: Category mismatch: expected fox, detected gray wolf
+```
+
+### When no image clears the bar, the system answers "no confident match"
+
+Both non-animal posts (coffee, hiking) reject all 50 images. The category
+check catches every candidate because the post text contains no animal words:
+
+```
+Post: 'Brewing a Better Cup of Coffee at Home'
+Rank  Image            Subject              Sim Verdict    Reason
+------------------------------------------------------------------------------------------
+1     bear_02.jpg      polar bear           0.7321 rejected   Category mismatch: expected something in the post, detected polar bear
+2     deer_10.jpg      Sika deer            0.7269 rejected   Category mismatch: expected something in the post, detected Sika deer
+3     bear_06.jpg      Brown bear           0.7247 rejected   Category mismatch: expected something in the post, detected Brown bear
+Suggestion: No confident match found
+```
+
 ---
 
-## Not yet done (Phase 3+)
+## Not yet done (Phase 4)
 
-- [ ] Embeddings generated for image captions and post text
-- [ ] Cosine similarity matching between images and posts
-- [ ] Mismatch guard (category + similarity + confidence checks)
 - [ ] POST /images/ingest endpoint (currently CLI-only)
 - [ ] GET /posts/{id}/images endpoint
 - [ ] POST /suggestions/{id}/approve and /reject endpoints
