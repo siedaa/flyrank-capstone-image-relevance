@@ -150,7 +150,7 @@ GET /posts/999999/images -> 404
 `Approval` rows. `GET /suggestions/{id}` returns the suggestion with any
 approval attached. Nonexistent suggestion IDs return 404.
 
-### Automated test suite covers all layers (29 tests, 100% pass)
+### Automated test suite covers all layers (36 tests, 100% pass)
 
 **`tests/test_schema_validation.py` (9 tests)** — pure unit tests against
 `ImageTag` Pydantic schema. Validates that confidence bounds (0.0–1.0) are
@@ -211,10 +211,27 @@ tests/test_api.py::test_get_suggestion_404 PASSED
 tests/test_api.py::test_approve_suggestion_404 PASSED
 ```
 
+**`tests/test_low_confidence_flagging.py` (7 tests)** — verifies that
+images tagged with confidence below 0.7 are flagged as
+`[LOW CONFIDENCE FLAGGED]` but still saved to the database (not skipped).
+Tests threshold value, flagged vs not-flagged behavior, boundary conditions
+(0.7 exactly is not flagged, 0.69 is), and that low-confidence images are
+persisted with all fields intact.
+
+```
+tests/test_low_confidence_flagging.py::TestLowConfidenceFlagging::test_threshold_is_0_7 PASSED
+tests/test_low_confidence_flagging.py::TestLowConfidenceFlagging::test_low_confidence_image_is_flagged PASSED
+tests/test_low_confidence_flagging.py::TestLowConfidenceFlagging::test_high_confidence_image_is_not_flagged PASSED
+tests/test_low_confidence_flagging.py::TestLowConfidenceFlagging::test_boundary_confidence_exactly_threshold_is_not_flagged PASSED
+tests/test_low_confidence_flagging.py::TestLowConfidenceFlagging::test_just_below_threshold_is_flagged PASSED
+tests/test_low_confidence_flagging.py::TestLowConfidenceFlagging::test_low_confidence_image_still_saved_not_skipped PASSED
+tests/test_low_confidence_flagging.py::TestLowConfidenceFlagging::test_summary_counter_increments_for_low_confidence PASSED
+```
+
 Full suite output:
 
 ```
-======================= 29 passed, 2 warnings in 7.03s ========================
+======================== 36 passed, 2 warnings in 6.54s ========================
 ```
 
 ### Semantic matching handles synonyms and scientific names
