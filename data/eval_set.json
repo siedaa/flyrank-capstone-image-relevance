@@ -1,0 +1,9 @@
+[
+  {"post_title": "The Secret Life of Red Foxes", "expected_category": "fox"},
+  {"post_title": "How Wolf Packs Hunt Together", "expected_category": "wolf"},
+  {"post_title": "Why Dogs Are Man's Best Friend", "expected_category": "dog"},
+  {"post_title": "Bears: Gentle Giants of the Wild", "expected_category": "bear"},
+  {"post_title": "The Graceful World of Deer", "expected_category": "deer"},
+  {"post_title": "Brewing a Better Cup of Coffee at Home", "expected_category": null},
+  {"post_title": "Hiking Gear Review: The Best Trail Boots of the Year", "expected_category": null}
+]

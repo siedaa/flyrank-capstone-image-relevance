@@ -54,6 +54,26 @@ python scripts/generate_embeddings.py
 pytest
 ```
 
+## Evaluation
+
+Top-1 precision measured against `data/eval_set.json` (7 posts: 5 animal, 2
+non-animal). Each post is matched against all 50 images; the system either
+suggests the top-ranked accepted image or returns "no confident match".
+
+| Post | Expected | Suggestion | Correct |
+|------|----------|------------|---------|
+| The Secret Life of Red Foxes | fox | fox_10.jpg | yes |
+| How Wolf Packs Hunt Together | wolf | wolf_02.jpg | yes |
+| Why Dogs Are Man's Best Friend | dog | dog_09.jpg | yes |
+| Bears: Gentle Giants of the Wild | bear | bear_01.jpg | yes |
+| The Graceful World of Deer | deer | deer_10.jpg | yes |
+| Brewing a Better Cup of Coffee at Home | (none) | no match | yes |
+| Hiking Gear Review: The Best Trail Boots of the Year | (none) | no match | yes |
+
+**Top-1 precision: 7/7 = 100.0%**
+
+Run `python scripts/run_eval.py` to reproduce.
+
 ## Current status
 
 | Phase | Status | What it covers |
@@ -62,7 +82,7 @@ pytest
 | 1 | Done | Image dataset organized (50 images, 5 categories) |
 | 2 | Done | Gemini vision tagging pipeline with batch ingestion, retries, cost tracking |
 | 3 | Done | Embeddings (3072-dim), cosine similarity matching, mismatch guard (category + similarity + confidence) |
-| 4 | Pending | API endpoints for suggestions, approval workflow |
+| 4 | Done | REST API (images/posts/suggestions endpoints), background ingestion, review workflow, evaluation pipeline |
 
 ## Limitations
 
