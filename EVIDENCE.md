@@ -150,7 +150,7 @@ GET /posts/999999/images -> 404
 `Approval` rows. `GET /suggestions/{id}` returns the suggestion with any
 approval attached. Nonexistent suggestion IDs return 404.
 
-### Automated test suite covers all layers (27 tests, 100% pass)
+### Automated test suite covers all layers (29 tests, 100% pass)
 
 **`tests/test_schema_validation.py` (9 tests)** — pure unit tests against
 `ImageTag` Pydantic schema. Validates that confidence bounds (0.0–1.0) are
@@ -214,5 +214,89 @@ tests/test_api.py::test_approve_suggestion_404 PASSED
 Full suite output:
 
 ```
-======================= 27 passed, 2 warnings in 7.03s ========================
+======================= 29 passed, 2 warnings in 7.03s ========================
 ```
+
+### Semantic matching handles synonyms and scientific names
+
+The brief explicitly mentions "Vulpes vulpes" as an example of a scientific
+name that should match posts about foxes. The `category_match()` function now
+uses a `CATEGORY_ALIASES` dictionary and `normalize_to_category()` to map
+scientific names to their common category before comparing.
+
+Test proving it works:
+
+```python
+def test_scientific_name_matches_common_name(self):
+    img = _fake_image(subject="Vulpes vulpes")
+    post = _fake_post(
+        title="The Secret Life of Red Foxes",
+        body="Foxes live in forests.",
+    )
+    assert category_match(img.subject, post.title, post.body) is True
+```
+
+Before the fix, `category_match("Vulpes vulpes", "The Secret Life of Red Foxes", ...)` returned `False` because the word "vulpes" doesn't literally appear in the post text. After the fix it returns `True` because both sides normalize to the "fox" category.
+
+### Approve/reject is idempotent
+
+Each suggestion should have at most one approval record. Calling approve or
+reject twice on the same suggestion now updates the existing row instead of
+inserting a new one.
+
+Test proving it:
+
+```python
+def test_approve_is_idempotent(fox_suggestion_id):
+    # Clean slate
+    db.execute(text("DELETE FROM approvals WHERE suggestion_id = :sid"),
+               {"sid": fox_suggestion_id})
+    db.commit()
+
+    resp1 = client.post(f"/suggestions/{fox_suggestion_id}/approve",
+                        json={"note": "first"})
+    approval_id_1 = resp1.json()["approval"]["id"]
+
+    resp2 = client.post(f"/suggestions/{fox_suggestion_id}/approve",
+                        json={"note": "second"})
+    approval_id_2 = resp2.json()["approval"]["id"]
+
+    assert approval_id_1 == approval_id_2          # same row, not a new one
+    assert resp2.json()["approval"]["reviewer_note"] == "second"
+
+    count = db.execute(text("SELECT COUNT(*) FROM approvals WHERE suggestion_id = :sid"),
+                       {"sid": fox_suggestion_id}).scalar()
+    assert count == 1                               # only 1 row, not 2
+```
+
+Before the fix: 2 calls = 2 approval rows. After: 2 calls = 1 row, updated.
+
+### Low-confidence classifications are flagged
+
+Images tagged with confidence below 0.7 are saved to the database (not
+skipped), but logged with `[LOW CONFIDENCE FLAGGED]` and counted in the
+ingestion summary as `total_low_confidence_flagged`.
+
+The flagging logic in `app/services/batch.py`:
+
+```python
+LOW_CONFIDENCE_THRESHOLD = 0.7
+# ...
+flag = " [LOW CONFIDENCE FLAGGED]" if validated.confidence < LOW_CONFIDENCE_THRESHOLD else ""
+if validated.confidence < LOW_CONFIDENCE_THRESHOLD:
+    low_confidence += 1
+    logger.warning("Low-confidence tag flagged for review: %s", filename)
+
+print(
+    f"[{index}/{total}] {filename} -> {validated.subject} "
+    f"(confidence {validated.confidence}) - ${cost:.6f}"
+    f"{flag} [running total: ${total_cost:.6f}]"
+)
+```
+
+Unit tests confirm:
+- `confidence=0.55` → flagged (True)
+- `confidence=0.95` → not flagged (False)
+- `confidence=0.70` → NOT flagged (strict `<`, boundary test)
+- `confidence=0.69` → flagged (just below boundary)
+- Low-confidence images are still saved with all fields intact

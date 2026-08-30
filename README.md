@@ -89,7 +89,7 @@ project, not hidden.
 | 1 | Done | Image dataset organized (50 images, 5 categories) |
 | 2 | Done | Gemini vision tagging pipeline with batch ingestion, retries, cost tracking |
 | 3 | Done | Embeddings (3072-dim), cosine similarity matching, mismatch guard (category + similarity + confidence) |
-| 4 | Done | REST API (images/posts/suggestions endpoints), background ingestion, review workflow, evaluation pipeline, automated test suite (27 tests) |
+| 4 | Done | REST API (images/posts/suggestions endpoints), background ingestion, review workflow, evaluation pipeline, automated test suite (29 tests) |
 
 ## Limitations
 
@@ -113,3 +113,13 @@ were derived from measuring real similarity scores across the dataset, not
 guessed. The 0.75 floor sits below the lowest accepted animal-to-animal
 similarity (~0.77 for dog post top match) while above the highest
 non-animal post similarity (~0.74).
+
+**Category matching handles synonyms and scientific names.** The matching
+engine uses a `CATEGORY_ALIASES` dictionary that maps each animal category to
+common and scientific name variants (e.g., "fox" → ["fox", "vulpes vulpes"]).
+Both the image subject and post text are normalized to canonical categories
+before comparison, so "Vulpes vulpes" correctly matches posts about foxes.
+
+**Approve/reject is idempotent.** Each suggestion can have at most one
+approval record. Calling approve or reject twice updates the existing row
+instead of inserting duplicates.

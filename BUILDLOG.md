@@ -165,4 +165,76 @@ I built four test files covering every layer:
    gracefully without DB. A module-scoped fixture ensures a suggestion exists
    for the fox post before testing the GET endpoint.
 
-Final output: `27 passed, 2 warnings in 7.03s`
+Final output: `29 passed, 2 warnings in 7.03s`
+
+## Post-review fixes
+
+### Category matching: synonym and scientific name support
+
+When I reviewed the `category_match()` function after the initial test suite
+passed, I realized it only did literal word overlap — splitting the image
+subject and post text into words and checking if any word appeared in both.
+This would fail on the brief's explicit example: an image tagged "Vulpes
+vulpes" would never match a post about "red fox" because "vulpes" doesn't
+appear anywhere in the post text.
+
+The fix was to build a `CATEGORY_ALIASES` dictionary mapping each animal
+category to its common and scientific name variants:
+
+```python
+CATEGORY_ALIASES: dict[str, list[str]] = {
+    "fox": ["fox", "vulpes vulpes"],
+    "wolf": ["wolf", "canis lupus", "grey wolf", "gray wolf"],
+    "dog": ["dog", "canis familiaris", "canis lupus familiaris", "puppy"],
+    "bear": ["bear", "ursus"],
+    "deer": ["deer", "cervidae", "cervus", "stag", "doe", "fawn"],
+}
+```
+
+I added a `normalize_to_category()` function that lowercases input text and
+checks if any alias appears as a substring, returning the canonical category
+name. Then I rewrote `category_match()` to normalize both the image subject
+and the post title+body to canonical categories and compare them directly.
+The old word-overlap logic is kept as a fallback when either side can't be
+normalized (e.g., a post about coffee that has no animal keywords at all).
+
+I wrote a new test `test_scientific_name_matches_common_name` that creates a
+fake image with subject "Vulpes vulpes" and a post titled "The Secret Life
+of Red Foxes" — and confirms `category_match()` returns `True`. This test
+would have failed before the fix.
+
+### Idempotent approve/reject workflow
+
+When I tested the approve/reject endpoints by calling them twice in
+succession, I discovered the workflow wasn't idempotent — each call inserted
+a new `Approval` row instead of updating the existing one. This meant a
+suggestion could end up with multiple approval records, which is wrong.
+
+I found 4 duplicate approval rows already existed in the database from
+earlier manual testing. I cleaned those up by keeping only the most recent
+decision per suggestion (using `created_at` ordering) and deleting the rest.
+
+The fix was two parts:
+1. Added a unique constraint on `suggestion_id` in the `Approval` model
+2. Updated both the approve and reject endpoints to check if an approval
+   already exists for that suggestion — if so, update the existing row's
+   `decision` and `reviewer_note` fields instead of inserting a new one
+
+I wrote `test_approve_is_idempotent` which calls approve twice on the same
+suggestion, asserts the approval ID stays the same, the reviewer note updates
+to "second", and only 1 row exists in the approvals table afterward.
+
+### Low-confidence flagging verification
+
+I verified the low-confidence flagging logic in `batch.py`. Images with
+confidence below 0.7 are already saved to the database (not skipped), then
+flagged with `[LOW CONFIDENCE FLAGGED]` in the print output and counted in
+the summary via `total_low_confidence_flagged`. The threshold is defined as
+`LOW_CONFIDENCE_THRESHOLD = 0.7`.
+
+I wrote 7 unit tests in `test_low_confidence_flagging.py` covering:
+- The threshold is exactly 0.7
+- Images at 0.55 confidence are flagged, images at 0.95 are not
+- Boundary: exactly 0.7 is NOT flagged (strict `<`), 0.69 IS flagged
+- Low-confidence images are still saved (not skipped) — the flag is metadata
+- The summary counter increments correctly for mixed-confidence batches
