@@ -89,7 +89,7 @@ project, not hidden.
 | 1 | Done | Image dataset organized (50 images, 5 categories) |
 | 2 | Done | Gemini vision tagging pipeline with batch ingestion, retries, cost tracking |
 | 3 | Done | Embeddings (3072-dim), cosine similarity matching, mismatch guard (category + similarity + confidence) |
-| 4 | In progress | REST API (images/posts/suggestions endpoints), background ingestion, review workflow, evaluation pipeline — automated tests remaining |
+| 4 | Done | REST API (images/posts/suggestions endpoints), background ingestion, review workflow, evaluation pipeline, automated test suite (27 tests) |
 
 ## Limitations
 

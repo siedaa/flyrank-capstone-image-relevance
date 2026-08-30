@@ -132,11 +132,87 @@ Rank  Image            Subject              Sim Verdict    Reason
 Suggestion: No confident match found
 ```
 
----
+### "REST API serves image suggestions for posts"
 
-## Not yet done (Phase 4)
+`GET /posts/{id}/images` runs the ranking pipeline, persists suggestions,
+and returns structured JSON with candidates. Non-animal posts return
+`suggestion: null`. Nonexistent posts return 404.
 
-- [ ] POST /images/ingest endpoint (currently CLI-only)
-- [ ] GET /posts/{id}/images endpoint
-- [ ] POST /suggestions/{id}/approve and /reject endpoints
-- [ ] Evaluation dataset and precision reporting
+```
+GET /posts/1/images  -> 200, suggestion: fox_10.jpg
+GET /posts/6/images  -> 200, suggestion: null
+GET /posts/999999/images -> 404
+```
+
+### "Review workflow supports approve/reject"
+
+`POST /suggestions/{id}/approve` and `POST /suggestions/{id}/reject` create
+`Approval` rows. `GET /suggestions/{id}` returns the suggestion with any
+approval attached. Nonexistent suggestion IDs return 404.
+
+### Automated test suite covers all layers (27 tests, 100% pass)
+
+**`tests/test_schema_validation.py` (9 tests)** — pure unit tests against
+`ImageTag` Pydantic schema. Validates that confidence bounds (0.0–1.0) are
+enforced, string coercion is rejected (`strict=True`), category must be
+`"animal"`, and required fields are checked.
+
+```
+tests/test_schema_validation.py::test_valid_image_tag PASSED
+tests/test_schema_validation.py::test_confidence_above_one_raises PASSED
+tests/test_schema_validation.py::test_confidence_below_zero_raises PASSED
+tests/test_schema_validation.py::test_confidence_string_raises PASSED
+tests/test_schema_validation.py::test_non_animal_category_raises PASSED
+tests/test_schema_validation.py::test_missing_caption_raises PASSED
+tests/test_schema_validation.py::test_missing_subject_raises PASSED
+tests/test_schema_validation.py::test_boundary_confidence_zero PASSED
+tests/test_schema_validation.py::test_boundary_confidence_one PASSED
+```
+
+**`tests/test_mismatch_guard.py` (8 tests)** — unit tests against
+`evaluate_guard()` and `category_match()` with hand-constructed fake objects.
+Covers all three rejection paths (category mismatch, similarity below floor,
+confidence below floor), the accepted path, and the generic "expected
+something in the post" message for non-animal posts.
+
+```
+tests/test_mismatch_guard.py::TestCategoryMatch::test_matching_category PASSED
+tests/test_mismatch_guard.py::TestCategoryMatch::test_mismatch_category PASSED
+tests/test_mismatch_guard.py::TestCategoryMatch::test_no_animal_words_in_post PASSED
+tests/test_mismatch_guard.py::TestEvaluateGuard::test_category_mismatch_rejected PASSED
+tests/test_mismatch_guard.py::TestEvaluateGuard::test_similarity_below_floor PASSED
+tests/test_mismatch_guard.py::TestEvaluateGuard::test_confidence_below_floor PASSED
+tests/test_mismatch_guard.py::TestEvaluateGuard::test_all_pass_accepted PASSED
+tests/test_mismatch_guard.py::TestEvaluateGuard::test_no_animal_in_post_generic_rejection PASSED
+```
+
+**`tests/test_matching_accuracy.py` (4 tests)** — integration tests against
+the real Postgres database. Verifies `rank_images_for_post()` returns a fox
+image for the fox post, `None` for coffee and hiking posts, and that a
+forced wolf-on-fox-post is rejected with "Category mismatch". Skips
+gracefully if Postgres is unreachable.
+
+```
+tests/test_matching_accuracy.py::test_fox_post_returns_fox_image PASSED
+tests/test_matching_accuracy.py::test_coffee_post_returns_no_suggestion PASSED
+tests/test_matching_accuracy.py::test_hiking_post_returns_no_suggestion PASSED
+tests/test_matching_accuracy.py::test_wolf_vs_fox_post_rejected PASSED
+```
+
+**`tests/test_api.py` (5 tests)** — FastAPI `TestClient` tests against
+running endpoints. Verifies fox post returns a suggestion, coffee post
+returns null, and nonexistent resources return 404.
+
+```
+tests/test_api.py::test_fox_post_images_returns_suggestion PASSED
+tests/test_api.py::test_coffee_post_images_returns_null_suggestion PASSED
+tests/test_api.py::test_nonexistent_post_returns_404 PASSED
+tests/test_api.py::test_get_suggestion_404 PASSED
+tests/test_api.py::test_approve_suggestion_404 PASSED
+```
+
+Full suite output:
+
+```
+======================= 27 passed, 2 warnings in 7.03s ========================
+```
