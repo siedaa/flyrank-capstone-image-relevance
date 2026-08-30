@@ -74,6 +74,13 @@ suggests the top-ranked accepted image or returns "no confident match".
 
 Run `python scripts/run_eval.py` to reproduce.
 
+**Honest caveats:** The eval set is intentionally small (7 posts), matching
+the brief's minimal scope — a single misclassification would drop the score
+to 85.7%. The similarity threshold (`similarity_floor=0.75`) was tuned by
+observing this same dataset rather than validated against a separate held-out
+set. Both are disclosed as honest scope limitations of a capstone-sized
+project, not hidden.
+
 ## Current status
 
 | Phase | Status | What it covers |
@@ -82,7 +89,7 @@ Run `python scripts/run_eval.py` to reproduce.
 | 1 | Done | Image dataset organized (50 images, 5 categories) |
 | 2 | Done | Gemini vision tagging pipeline with batch ingestion, retries, cost tracking |
 | 3 | Done | Embeddings (3072-dim), cosine similarity matching, mismatch guard (category + similarity + confidence) |
-| 4 | Done | REST API (images/posts/suggestions endpoints), background ingestion, review workflow, evaluation pipeline |
+| 4 | In progress | REST API (images/posts/suggestions endpoints), background ingestion, review workflow, evaluation pipeline — automated tests remaining |
 
 ## Limitations
 
