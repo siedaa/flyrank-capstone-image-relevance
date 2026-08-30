@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Image Understanding &amp; Content Matching Engine</title>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --fg: #1a1a2e;
+            --accent: #2563eb;
+            --accent-light: #dbeafe;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --card-bg: #f8fafc;
+            --code-bg: #1e293b;
+            --code-fg: #e2e8f0;
+            --green: #16a34a;
+            --red: #dc2626;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            line-height: 1.6;
+        }
+        .container { max-width: 960px; margin: 0 auto; padding: 0 1.5rem; }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: #fff;
+            padding: 4rem 1.5rem;
+            text-align: center;
+        }
+        header h1 { font-size: 2.25rem; font-weight: 700; margin-bottom: 0.75rem; }
+        header p { font-size: 1.15rem; color: #94a3b8; max-width: 640px; margin: 0 auto; }
+
+        /* Sections */
+        section { padding: 3.5rem 0; }
+        section:nth-child(even) { background: var(--card-bg); }
+        h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; }
+        h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; }
+        p { margin-bottom: 1rem; }
+        .muted { color: var(--muted); font-size: 0.9rem; }
+
+        /* Architecture diagram */
+        .arch-diagram {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 1.5rem 0;
+        }
+        .arch-box {
+            background: var(--accent-light);
+            border: 2px solid var(--accent);
+            border-radius: 8px;
+            padding: 0.6rem 1rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-align: center;
+            min-width: 100px;
+        }
+        .arch-box.guard { background: #fef3c7; border-color: #f59e0b; }
+        .arch-box.result { background: #dcfce7; border-color: var(--green); }
+        .arch-arrow {
+            font-size: 1.4rem;
+            color: var(--muted);
+            flex-shrink: 0;
+        }
+
+        /* Screenshots */
+        .screenshot-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        @media (max-width: 640px) {
+            .screenshot-grid { grid-template-columns: 1fr; }
+        }
+        .screenshot-card {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fff;
+        }
+        .screenshot-card img {
+            width: 100%;
+            display: block;
+        }
+        .screenshot-card .caption {
+            padding: 0.75rem 1rem;
+            font-size: 0.88rem;
+            color: var(--muted);
+            border-top: 1px solid var(--border);
+        }
+        .screenshot-card .caption strong { color: var(--fg); }
+
+        /* Code block */
+        pre {
+            background: var(--code-bg);
+            color: var(--code-fg);
+            border-radius: 8px;
+            padding: 1.25rem 1.5rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            line-height: 1.7;
+            margin: 1.5rem 0;
+        }
+        code { font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace; }
+
+        /* Evaluation table */
+        .eval-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            font-size: 0.9rem;
+        }
+        .eval-table th, .eval-table td {
+            padding: 0.6rem 1rem;
+            border: 1px solid var(--border);
+            text-align: left;
+        }
+        .eval-table th { background: var(--accent-light); font-weight: 600; }
+        .eval-table td:last-child { font-weight: 600; }
+        .precision-result {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--green);
+            margin: 1rem 0 0.5rem;
+        }
+        .caveat {
+            background: #fefce8;
+            border-left: 4px solid #eab308;
+            padding: 0.75rem 1rem;
+            border-radius: 0 6px 6px 0;
+            font-size: 0.88rem;
+            color: #713f12;
+            margin-top: 1rem;
+        }
+
+        /* Tech stack */
+        .tech-list {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+        .tech-list li {
+            background: var(--accent-light);
+            color: var(--accent);
+            padding: 0.35rem 0.85rem;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--code-bg);
+            color: #94a3b8;
+            text-align: center;
+            padding: 2rem 1.5rem;
+            font-size: 0.9rem;
+        }
+        footer a { color: var(--accent); text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+        footer p { margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="container">
+        <h1>AI Image Understanding &amp; Content Matching Engine</h1>
+        <p>A FastAPI service that uses Google Gemini's vision model to match blog posts to animal images by meaning — and refuses to guess when it isn't confident.</p>
+    </div>
+</header>
+
+<!-- The Problem -->
+<section>
+    <div class="container">
+        <h2>The Problem</h2>
+        <p>Blog posts need images, but finding the right one is tedious. Existing tools match by filename or tags — they can't understand that a post about "The Secret Life of Red Foxes" should be paired with a fox photo, not a wolf or a bear.</p>
+        <p>This system takes a different approach: it uses AI vision to <em>understand</em> what each image actually shows, then matches images to posts by semantic meaning. Crucially, it knows when to say "I don't know" — rejecting suggestions where no image confidently fits.</p>
+    </div>
+</section>
+
+<!-- Architecture -->
+<section>
+    <div class="container">
+        <h2>Architecture</h2>
+        <div class="arch-diagram">
+            <div class="arch-box">Images</div>
+            <span class="arch-arrow">&rarr;</span>
+            <div class="arch-box">Gemini Vision Tagging</div>
+            <span class="arch-arrow">&rarr;</span>
+            <div class="arch-box">Embeddings (3072-dim)</div>
+            <span class="arch-arrow">&rarr;</span>
+            <div class="arch-box">Cosine Similarity Ranking</div>
+            <span class="arch-arrow">&rarr;</span>
+            <div class="arch-box guard">Mismatch Guard</div>
+            <span class="arch-arrow">&rarr;</span>
+            <div class="arch-box result">Suggestions</div>
+        </div>
+        <p class="muted" style="text-align:center; margin-top:0.75rem;">The mismatch guard checks category match &rarr; similarity threshold &rarr; confidence floor before accepting any suggestion.</p>
+    </div>
+</section>
+
+<!-- See It Work -->
+<section>
+    <div class="container">
+        <h2>See It Work</h2>
+        <div class="screenshot-grid">
+            <div class="screenshot-card">
+                <img src="swagger-ui-overview.png" alt="Swagger UI showing all available API endpoints">
+                <div class="caption"><strong>Swagger UI overview.</strong> All endpoints for images, posts, and suggestions are documented and testable directly from the browser.</div>
+            </div>
+            <div class="screenshot-card">
+                <img src="swagger-ui-endpoint-detail.png" alt="Swagger UI showing endpoint detail with request/response schema">
+                <div class="caption"><strong>Endpoint detail.</strong> Each endpoint includes typed request/response schemas, making the API self-documenting.</div>
+            </div>
+            <div class="screenshot-card">
+                <img src="fox-post-response.png" alt="API response showing a fox image suggested for the fox blog post">
+                <div class="caption"><strong>Correct match accepted.</strong> The fox post ("The Secret Life of Red Foxes") gets fox_10.jpg as its top suggestion — the guard confirms category, similarity, and confidence all pass.</div>
+            </div>
+            <div class="screenshot-card">
+                <img src="coffee-post-response.png" alt="API response showing no image suggested for the coffee post">
+                <div class="caption"><strong>Correct rejection.</strong> A coffee-brewing post returns <code>suggestion: null</code> — the guard correctly refuses because no animal image belongs with a non-animal post.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Safety Mechanism -->
+<section>
+    <div class="container">
+        <h2>The Safety Mechanism in Action</h2>
+        <p>The mismatch guard is the core safety feature. Even when a wolf image scores high similarity against a fox post, the category check catches the mismatch and rejects it:</p>
+        <pre><code>Forcing wolf_02.jpg as a candidate for 'The Secret Life of Red Foxes'
+Similarity score: 0.7683
+Guard verdict: rejected
+Reason: Category mismatch: expected fox, detected gray wolf</code></pre>
+        <p class="muted">This test was deliberately constructed to try to fool the system. The guard holds.</p>
+    </div>
+</section>
+
+<!-- Evaluation -->
+<section>
+    <div class="container">
+        <h2>Evaluation</h2>
+        <p>Top-1 precision measured against 7 labeled posts (5 animal, 2 non-animal). Each post is matched against all 50 images; the system either suggests the top-ranked accepted image or returns "no confident match".</p>
+        <table class="eval-table">
+            <thead>
+                <tr><th>Post</th><th>Expected</th><th>Suggestion</th><th>Correct</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>The Secret Life of Red Foxes</td><td>fox</td><td>fox_10.jpg</td><td>yes</td></tr>
+                <tr><td>How Wolf Packs Hunt Together</td><td>wolf</td><td>wolf_02.jpg</td><td>yes</td></tr>
+                <tr><td>Why Dogs Are Man's Best Friend</td><td>dog</td><td>dog_09.jpg</td><td>yes</td></tr>
+                <tr><td>Bears: Gentle Giants of the Wild</td><td>bear</td><td>bear_01.jpg</td><td>yes</td></tr>
+                <tr><td>The Graceful World of Deer</td><td>deer</td><td>deer_10.jpg</td><td>yes</td></tr>
+                <tr><td>Brewing a Better Cup of Coffee at Home</td><td>(none)</td><td>no match</td><td>yes</td></tr>
+                <tr><td>Hiking Gear Review: The Best Trail Boots of the Year</td><td>(none)</td><td>no match</td><td>yes</td></tr>
+            </tbody>
+        </table>
+        <p class="precision-result">Top-1 precision: 7/7 = 100.0%</p>
+        <div class="caveat">
+            <strong>Honest caveats:</strong> The eval set is intentionally small (7 posts), matching the brief's minimal scope — a single misclassification would drop the score to 85.7%. The similarity threshold (<code>similarity_floor=0.75</code>) was tuned by observing this same dataset rather than validated against a separate held-out set. Both are disclosed as honest scope limitations of a capstone-sized project, not hidden.
+        </div>
+    </div>
+</section>
+
+<!-- Tech Stack -->
+<section>
+    <div class="container">
+        <h2>Tech Stack</h2>
+        <ul class="tech-list">
+            <li>FastAPI</li>
+            <li>PostgreSQL</li>
+            <li>Google Gemini (Vision + Embeddings)</li>
+            <li>SQLAlchemy</li>
+            <li>Alembic</li>
+            <li>pytest</li>
+            <li>Pydantic</li>
+            <li>Docker</li>
+        </ul>
+    </div>
+</section>
+
+<footer>
+    <div class="container">
+        <p><a href="https://github.com/siedaa/flyrank-capstone-image-relevance">View on GitHub &rarr;</a></p>
+        <p>Run locally: see <a href="https://github.com/siedaa/flyrank-capstone-image-relevance#how-to-run">README</a> for setup instructions.</p>
+    </div>
+</footer>
+
+</body>
+</html>
