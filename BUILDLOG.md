@@ -3,7 +3,7 @@
 ## Where AI helped
 
 ### Schema design and ORM models
-AI (opencode + Claude as design guide) generated the initial `ImageTag`
+AI generated the initial `ImageTag`
 Pydantic schema, the SQLAlchemy `Image`/`Post`/`Suggestion`/`Approval`
 models, and the Alembic migration. The schema shape (subject, category,
 attributes, caption, confidence) was iterated on during conversation to
