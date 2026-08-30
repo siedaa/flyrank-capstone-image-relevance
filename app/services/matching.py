@@ -7,10 +7,27 @@ from app.models.post import Post
 STOP_WORDS = {"a", "an", "the", "of", "and", "or", "is", "in", "on", "at", "to", "for", "with", "by", "its", "it"}
 COLOR_WORDS = {"red", "brown", "black", "white", "gray", "grey", "golden", "yellow", "blue", "green", "asian"}
 
+CATEGORY_ALIASES: dict[str, list[str]] = {
+    "fox": ["fox", "vulpes vulpes"],
+    "wolf": ["wolf", "canis lupus", "grey wolf", "gray wolf"],
+    "dog": ["dog", "canis familiaris", "canis lupus familiaris", "puppy"],
+    "bear": ["bear", "ursus"],
+    "deer": ["deer", "cervidae", "cervus", "stag", "doe", "fawn"],
+}
+
 
 def cosine_similarity(a: list[float], b: list[float]) -> float:
     a_np, b_np = np.array(a), np.array(b)
     return float(np.dot(a_np, b_np) / (np.linalg.norm(a_np) * np.linalg.norm(b_np)))
+
+
+def normalize_to_category(text: str) -> str | None:
+    lower = text.lower()
+    for category, aliases in CATEGORY_ALIASES.items():
+        for alias in aliases:
+            if alias in lower:
+                return category
+    return None
 
 
 def _find_post_animal(post_title: str, all_image_subjects: list[str]) -> str | None:
@@ -26,9 +43,13 @@ def _find_post_animal(post_title: str, all_image_subjects: list[str]) -> str | N
 
 
 def category_match(image_subject: str, post_title: str, post_body: str) -> bool:
-    words = set(image_subject.lower().split()) - STOP_WORDS
-    text = (post_title + " " + post_body).lower()
-    return any(word in text for word in words)
+    image_cat = normalize_to_category(image_subject)
+    post_cat = normalize_to_category(post_title + " " + post_body)
+    if image_cat is None or post_cat is None:
+        words = set(image_subject.lower().split()) - STOP_WORDS
+        text = (post_title + " " + post_body).lower()
+        return any(word in text for word in words)
+    return image_cat == post_cat
 
 
 def evaluate_guard(image, post, similarity_score, all_image_subjects=None, similarity_floor=0.75, confidence_floor=0.7) -> dict:

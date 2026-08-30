@@ -27,6 +27,11 @@ class TestCategoryMatch:
         post = _fake_post(title="Brewing a Better Cup of Coffee", body="Coffee beans and hot water.")
         assert category_match(img.subject, post.title, post.body) is False
 
+    def test_scientific_name_matches_common_name(self):
+        img = _fake_image(subject="Vulpes vulpes")
+        post = _fake_post(title="The Secret Life of Red Foxes", body="Foxes live in forests.")
+        assert category_match(img.subject, post.title, post.body) is True
+
 
 class TestEvaluateGuard:
     def test_category_mismatch_rejected(self):

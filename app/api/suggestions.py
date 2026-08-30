@@ -71,12 +71,20 @@ def approve_suggestion(suggestion_id: int, body: ApproveRequest | None = None) -
             raise HTTPException(status_code=404, detail=f"Suggestion {suggestion_id} not found")
 
         note = body.note if body else None
-        approval = Approval(
-            suggestion_id=suggestion_id,
-            decision="approved",
-            reviewer_note=note,
-        )
-        db.add(approval)
+        existing = db.execute(
+            select(Approval).where(Approval.suggestion_id == suggestion_id)
+        ).scalar_one_or_none()
+        if existing:
+            existing.decision = "approved"
+            existing.reviewer_note = note
+            approval = existing
+        else:
+            approval = Approval(
+                suggestion_id=suggestion_id,
+                decision="approved",
+                reviewer_note=note,
+            )
+            db.add(approval)
         db.commit()
         db.refresh(approval)
 
@@ -105,12 +113,20 @@ def reject_suggestion(suggestion_id: int, body: ApproveRequest | None = None) ->
             raise HTTPException(status_code=404, detail=f"Suggestion {suggestion_id} not found")
 
         note = body.note if body else None
-        approval = Approval(
-            suggestion_id=suggestion_id,
-            decision="rejected",
-            reviewer_note=note,
-        )
-        db.add(approval)
+        existing = db.execute(
+            select(Approval).where(Approval.suggestion_id == suggestion_id)
+        ).scalar_one_or_none()
+        if existing:
+            existing.decision = "rejected"
+            existing.reviewer_note = note
+            approval = existing
+        else:
+            approval = Approval(
+                suggestion_id=suggestion_id,
+                decision="rejected",
+                reviewer_note=note,
+            )
+            db.add(approval)
         db.commit()
         db.refresh(approval)
 
