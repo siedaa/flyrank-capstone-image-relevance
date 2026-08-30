@@ -1,5 +1,7 @@
 # AI Image Understanding & Content Matching Engine
 
+**[Live showcase (GitHub Pages)](https://siedaa.github.io/flyrank-capstone-image-relevance/)**
+
 A FastAPI service that uses Google Gemini's vision model to tag animal images
 with structured metadata (subject, caption, confidence), stores results in
 Postgres, and matches images to blog posts via semantic embeddings with a
